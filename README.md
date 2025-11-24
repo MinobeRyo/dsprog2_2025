@@ -1,1 +1,3 @@
-# dsprog2_2025
+# dsprog2_2025brew
+pyenv lova
+
