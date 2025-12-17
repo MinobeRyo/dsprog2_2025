@@ -1,26 +1,31 @@
+"""
+天気予報アプリケーションのメインエントリーポイント
+Fletアプリケーションを起動する
+"""
+
 import flet as ft
+from ui.weather_view import WeatherView
 
 
 def main(page: ft.Page):
-    counter = ft.Text("0", size=50, data=0)
-
-    def increment_click(e):
-        counter.data += 1
-        counter.value = str(counter.data)
-        counter.update()
-
-    page.floating_action_button = ft.FloatingActionButton(
-        icon=ft.Icons.ADD, on_click=increment_click
-    )
-    page.add(
-        ft.SafeArea(
-            ft.Container(
-                counter,
-                alignment=ft.alignment.center,
-            ),
-            expand=True,
-        )
-    )
+    """
+    Fletアプリケーションのメイン関数
+    
+    Args
+        page: Fletのページオブジェクト
+    """
+    print("="*60)
+    print("🚀 天気予報アプリケーション起動")
+    print("="*60)
+    
+    # WeatherViewを作成してUIを構築
+    weather_view = WeatherView(page)
+    weather_view.build()
+    
+    print("\n✅ アプリケーション起動完了")
+    print("="*60 + "\n")
 
 
-ft.app(main)
+# アプリケーションを起動
+if __name__ == "__main__":
+    ft.app(target=main)

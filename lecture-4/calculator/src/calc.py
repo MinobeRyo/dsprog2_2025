@@ -16,24 +16,24 @@ class CalcButton(ft.ElevatedButton):
 class DigitButton(CalcButton):
     def __init__(self, text, button_clicked, expand=1):
         CalcButton.__init__(self, text, button_clicked, expand)  # 親クラスの初期化
-        self.bgcolor = ft.Colors.WHITE24  # 背景色: 薄い白
-        self.color = ft.Colors.WHITE  # 文字色: 白
+        self.bgcolor =ft.Colors.WHITE24  # 背景色: 薄い白
+        self.color =ft.Colors.WHITE  # 文字色: 白
 
 
 # 演算子ボタン用のクラス - +, -, *, /, = のボタン
 class ActionButton(CalcButton):
     def __init__(self, text, button_clicked):
         CalcButton.__init__(self, text, button_clicked)  # 親クラスの初期化
-        self.bgcolor = ft.Colors.ORANGE  # 背景色: オレンジ
-        self.color = ft.Colors.WHITE  # 文字色: 白
+        self.bgcolor =ft.Colors.ORANGE  # 背景色: オレンジ
+        self.color =ft.Colors.WHITE  # 文字色: 白
 
 
 # 特殊機能ボタン用のクラス - AC, +/-, %, 数学機能など
 class ExtraActionButton(CalcButton):
     def __init__(self, text, button_clicked):
         CalcButton.__init__(self, text, button_clicked)  # 親クラスの初期化
-        self.bgcolor = ft.Colors.BLUE_GREY_100  # 背景色: 青みがかったグレー
-        self.color = ft.Colors.BLACK  # 文字色: 黒
+        self.bgcolor =ft.Colors.BLUE_GREY_100  # 背景色: 青みがかったグレー
+        self.color =ft.Colors.BLACK  # 文字色: 黒
 
 
 # 電卓アプリのメインクラス - UIとロジックをまとめています
@@ -47,7 +47,7 @@ class CalculatorApp(ft.Container):
         
         # 電卓のサイズとデザイン設定
         self.width = 350  # 幅:350ピクセル
-        self.bgcolor = ft.Colors.BLACK  # 背景色: 黒
+        self.bgcolor =ft.Colors.BLACK  # 背景色: 黒
         self.border_radius = ft.border_radius.all(20)  # 角を丸くする: 半径20
         self.padding = 20  # 内側の余白: 20ピクセル
         
