@@ -3,7 +3,7 @@
 地域リストと天気予報データの取得機能を提供
 """
 
-from src.api.api_client import APIClient
+from api.api_client import APIClient
 
 
 class WeatherAPI:
