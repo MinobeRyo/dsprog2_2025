@@ -16,9 +16,7 @@ class WeatherView:
     def __init__(self, page: ft.Page):
         """
         WeatherViewの初期化
-        
-        Args
-            page: Fletのページオブジェクト
+        制御: ページ設定とAPI初期化
         """
         self.page = page
         self.weather_api = WeatherAPI()
@@ -39,6 +37,7 @@ class WeatherView:
     def build(self):
         """
         UIを構築してページに追加する
+        制御: 全UIコンポーネントの生成と配置
         """
         print("\n🎨 UI構築開始")
         
@@ -61,7 +60,7 @@ class WeatherView:
                 ft.Text("地域を選択", color=ft.Colors.WHITE, size=18),
                 ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=ft.Colors.WHITE),
             ]),
-            items=[]  # 後で動的に設定
+            items=[]
         )
         
         # 天気予報表示エリア（スクロール可能な大きなコンテナ）
@@ -103,14 +102,14 @@ class WeatherView:
             padding=30
         )
         
-        # カスタムアプリバー（AppBarコントロールの代わりにContainer+Rowを使用）
+        # カスタムアプリバー
         app_bar = ft.Container(
             content=ft.Row(
                 [
                     ft.Icon(ft.Icons.CLOUD, color=ft.Colors.WHITE, size=24),
-                    ft.Container(width=10),  # スペース
+                    ft.Container(width=10),
                     ft.Text("天気予報", color=ft.Colors.WHITE, size=20, weight=ft.FontWeight.BOLD),
-                    ft.Container(expand=True),  # スペーサー
+                    ft.Container(expand=True),
                     self.area_dropdown,
                     ft.IconButton(
                         icon=ft.Icons.REFRESH,
@@ -173,11 +172,12 @@ class WeatherView:
     
     def load_area_list_auto(self):
         """
-        地域リストを自動的に読み込む（ボタンクリックなしで実行）
+        地域リストを自動的に読み込む
+        制御: 初期ロード時にAPI呼び出し→ドロップダウン設定
         """
         print("\n📥 地域リスト自動読み込み開始")
         
-        # ローディング表示
+        # ローディング表示ON
         self.status_overlay.visible = True
         self.loading.visible = True
         self.error_text.visible = False
@@ -190,11 +190,10 @@ class WeatherView:
             # ドロップダウンのオプションを作成
             offices = self.area_list['offices']
             
-            # PopupMenuButtonのアイテムを設定
             self.area_dropdown.items = [
                 ft.PopupMenuItem(
                     text=info['name'],
-                    on_click=lambda e, code=code: self.on_area_selected(code)
+                    on_click=lambda _, code=code: self.on_area_selected(code)
                 )
                 for code, info in offices.items()
             ]
@@ -206,22 +205,20 @@ class WeatherView:
             print(f"❌ {error_msg}")
             self.show_error_message(error_msg)
         
-        # ローディング非表示
+        # ローディング表示OFF
         self.loading.visible = False
         self.status_overlay.visible = False
         self.page.update()
     
     
-    def load_area_list(self, e):
+    def load_area_list(self, _):
         """
-        地域リストを読み込んでドロップダウンに設定する（ボタンクリック時）
-        
-        Args:
-            e: イベントオブジェクト
+        地域リストを読み込んでドロップダウンに設定する
+        制御: リフレッシュボタンクリック時のAPI再呼び出し
         """
         print("\n📥 地域リスト読み込み開始")
         
-        # ローディング表示
+        # ローディング表示ON
         self.status_overlay.visible = True
         self.loading.visible = True
         self.error_text.visible = False
@@ -234,11 +231,10 @@ class WeatherView:
             # ドロップダウンのオプションを作成
             offices = self.area_list['offices']
             
-            # PopupMenuButtonのアイテムを設定
             self.area_dropdown.items = [
                 ft.PopupMenuItem(
                     text=info['name'],
-                    on_click=lambda e, code=code: self.on_area_selected(code)
+                    on_click=lambda _, code=code: self.on_area_selected(code)
                 )
                 for code, info in offices.items()
             ]
@@ -251,7 +247,7 @@ class WeatherView:
             print(f"❌ {error_msg}")
             self.show_error_message(error_msg)
         
-        # ローディング非表示
+        # ローディング表示OFF
         self.loading.visible = False
         self.status_overlay.visible = False
         self.page.update()
@@ -260,9 +256,7 @@ class WeatherView:
     def on_area_selected(self, area_code):
         """
         地域が選択されたときの処理
-        
-        Args:
-            area_code: 選択された地域コード
+        制御: 選択地域の確認→天気データAPI呼び出し→画面表示
         """
         if not area_code:
             return
@@ -280,7 +274,7 @@ class WeatherView:
                 ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=ft.Colors.WHITE),
             ])
         
-        # ローディング表示
+        # ローディング表示ON、ウェルカムメッセージOFF
         self.status_overlay.visible = True
         self.loading.visible = True
         self.error_text.visible = False
@@ -305,7 +299,7 @@ class WeatherView:
             self.show_error_message("天気予報の取得に失敗しました")
             self.welcome_message.visible = True
         
-        # ローディング非表示
+        # ローディング表示OFF
         self.loading.visible = False
         self.status_overlay.visible = False
         self.page.update()
@@ -313,10 +307,8 @@ class WeatherView:
     
     def display_weather(self, weather_data):
         """
-        天気予報情報を画面に表示する（iPhoneの天気アプリ風）
-        
-        Args:
-            weather_data 解析済みの天気予報データ
+        天気予報情報を画面に表示する
+        制御: データ解析→レイアウト生成→UI更新（背景色も動的に変更）
         """
         print("\n🌤️  天気予報表示開始")
         
@@ -334,12 +326,12 @@ class WeatherView:
             bg_color = ft.Colors.BLUE_ACCENT
         
         # 大きな天気アイコンと気温
-        weather_icon = "☀️"  # デフォルト
+        weather_icon = "☀️"
         first_forecast = weather_data.get('forecasts', [{}])[0]
         weather_text = first_forecast.get('weather', '不明')
         if "雨" in weather_text:
             weather_icon = "🌧️"
-        elif "曇" in weather_text:
+        elif "曇" in weather_text or "くもり" in weather_text:
             weather_icon = "☁️"
         elif "雪" in weather_text:
             weather_icon = "❄️"
@@ -347,7 +339,7 @@ class WeatherView:
         # ヘッダー情報（地域名、現在の天気など）
         header = ft.Container(
             content=ft.Column([
-                ft.Container(height=20),  # 上部スペース
+                ft.Container(height=20),
                 ft.Text(
                     weather_data.get('area_name', '不明'),
                     size=36,
@@ -362,7 +354,7 @@ class WeatherView:
                     text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Text(
-                    self._get_simple_weather(weather_text),  # 簡略化した天気の表示
+                    self._get_simple_weather(weather_text),
                     size=24,
                     color=ft.Colors.WHITE,
                     text_align=ft.TextAlign.CENTER,
@@ -388,10 +380,9 @@ class WeatherView:
         # 時間ごとの天気予報（横スクロール）
         forecasts = weather_data.get('forecasts', [])
         
-        # 日別予報カード（iPhoneアプリ風の白い半透明カード）
+        # 日別予報カード
         forecast_card = ft.Container(
             content=ft.Column([
-                # タイトル
                 ft.Container(
                     content=ft.Text(
                         "天気予報",
@@ -402,7 +393,6 @@ class WeatherView:
                     padding=ft.padding.only(left=15, top=15, bottom=5),
                 ),
                 
-                # 天気予報リスト
                 ft.Container(
                     content=ft.Column([
                         self._create_forecast_row(forecast, i)
@@ -432,7 +422,6 @@ class WeatherView:
                     padding=ft.padding.only(left=15, top=15, bottom=5),
                 ),
                 
-                # 発表元情報
                 ft.Container(
                     content=ft.Column([
                         ft.ListTile(
@@ -460,23 +449,21 @@ class WeatherView:
         )
         
         self.weather_info.controls.append(info_card)
-        
-        # 最下部に余白を追加
         self.weather_info.controls.append(ft.Container(height=30))
         
         self.weather_info.visible = True
-        self.page.bgcolor = bg_color  # ページ全体の背景色も変更
+        self.page.bgcolor = bg_color
         print(f"✅ {len(forecasts)}日分の天気予報を表示しました")
     
     
     def _get_simple_weather(self, weather_text):
         """
         天気テキストを簡略化する
+        制御: 文字列解析→最初の単語を抽出
         """
         if not weather_text:
             return "不明"
             
-        # 主要な天気を抽出
         weather_parts = weather_text.split()
         main_weather = weather_parts[0] if weather_parts else "不明"
         
@@ -485,31 +472,25 @@ class WeatherView:
     
     def _create_forecast_row(self, forecast, index):
         """
-        各予報日の行を作成する（改善版）
+        各予報日の行を作成する
+        制御: 天気データ→アイコン判定→チップ生成→行レイアウト構築
         """
-        # 天気テキストを解析して構造化
         weather_text = forecast.get('weather', '不明')
         weather_parts = weather_text.split()
         
-        # 主要な天気を判断（最初の単語を主要天気と見なす）
+        # 主要な天気を判断
         main_weather = weather_parts[0] if weather_parts else "不明"
         
-        # 天気に応じたアイコンと色
-        weather_icon = "☀️"  # デフォルト
-        weather_color = ft.Colors.ORANGE
-        
+        # 天気に応じたアイコン選択
+        weather_icon = "☀️"
         if "雨" in main_weather:
             weather_icon = "🌧️"
-            weather_color = ft.Colors.BLUE
         elif "曇" in main_weather or "くもり" in main_weather:
-            weather_icon = "☁️" 
-            weather_color = ft.Colors.GREY
+            weather_icon = "☁️"
         elif "雪" in main_weather:
             weather_icon = "❄️"
-            weather_color = ft.Colors.LIGHT_BLUE
         elif "晴" in main_weather:
             weather_icon = "☀️"
-            weather_color = ft.Colors.ORANGE
         
         # 日付表示のフォーマット
         date_str = forecast.get('date', '')
@@ -523,7 +504,7 @@ class WeatherView:
         else:
             date_display = "不明"
         
-        # 今日か明日かを表示
+        # インデックスで今日/明日の判定
         if index == 0:
             date_display = f"今日 ({date_display})"
         elif index == 1:
@@ -546,10 +527,9 @@ class WeatherView:
             elif part in ["朝", "昼", "夕方", "夜", "夜遅く", "明け方", "夜のはじめ頃", "一時", "後", "のち"]:
                 current_time = part
             elif part in ["所により"]:
-                # 特別な状況を示す言葉は無視
                 pass
         
-        # 残りの天気と時間の組み合わせがあれば追加
+        # 残りの天気と時間の組み合わせを追加
         if current_weather and not current_time:
             time_periods.append(("終日", current_weather))
         elif current_time and current_weather:
@@ -592,7 +572,6 @@ class WeatherView:
             content=ft.Column([
                 # 日付と主要天気
                 ft.Row([
-                    # 日付
                     ft.Container(
                         content=ft.Text(
                             date_display,
@@ -603,7 +582,6 @@ class WeatherView:
                         width=130,
                     ),
                     
-                    # 主要天気アイコン
                     ft.Container(
                         content=ft.Text(
                             weather_icon,
@@ -612,7 +590,6 @@ class WeatherView:
                         width=40,
                     ),
                     
-                    # 天気の簡潔な説明（主要天気のみ）
                     ft.Container(
                         content=ft.Text(
                             main_weather,
@@ -640,7 +617,6 @@ class WeatherView:
             ]),
             padding=ft.padding.symmetric(horizontal=15, vertical=12),
             border_radius=10,
-            # 行のホバーエフェクト
             ink=True,
             on_hover=lambda e: self._on_forecast_hover(e),
         )
@@ -649,10 +625,11 @@ class WeatherView:
     def _on_forecast_hover(self, e):
         """
         予報行のホバーエフェクト処理
+        制御: ホバー状態判定→背景色ON/OFF
         """
-        if e.data == "true":  # ホバー時
+        if e.data == "true":
             e.control.bgcolor = ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
-        else:  # ホバー解除時
+        else:
             e.control.bgcolor = None
         
         e.control.update()
@@ -661,9 +638,7 @@ class WeatherView:
     def show_error_message(self, message):
         """
         エラーメッセージを表示する
-        
-        Args:
-            message: 表示するエラーメッセージ
+        制御: メッセージ表示→3秒後に自動消去
         """
         self.error_text.value = f"❌ {message}"
         self.error_text.visible = True
@@ -682,11 +657,8 @@ class WeatherView:
     def show_success_message(self, message):
         """
         成功メッセージを表示する
-        
-        Args:
-            message: 表示する成功メッセージ
+        制御: 成功メッセージ表示→色変更→2秒後に自動消去・色戻す
         """
-        # 一時的にエラーテキストを成功メッセージに使用
         self.error_text.value = f"✅ {message}"
         self.error_text.color = ft.Colors.GREEN_400
         self.error_text.visible = True
