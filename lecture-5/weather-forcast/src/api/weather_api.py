@@ -68,8 +68,7 @@ class WeatherAPI:
                 return None
         
         return area_list
-    
-    
+        
     def get_weather_forecast(self, area_code):
         """
         指定されたエリアの天気予報を取得する
@@ -90,6 +89,18 @@ class WeatherAPI:
             
             if db_forecast:
                 print(f"DBから{area_code}の天気予報を取得しました")
+                # 日付ごとに重複を排除
+                if 'forecasts' in db_forecast:
+                    unique_forecasts = {}
+                    for forecast in db_forecast['forecasts']:
+                        date_key = forecast['date'][:10]  # YYYY-MM-DDの部分だけを使用
+                        if date_key not in unique_forecasts:
+                            unique_forecasts[date_key] = forecast
+                    
+                    # 辞書から値のリストを作成し、日付でソート
+                    db_forecast['forecasts'] = sorted(unique_forecasts.values(), key=lambda x: x["date"])
+                    print(f"重複排除後の予報件数: {len(db_forecast['forecasts'])}")
+                
                 return db_forecast
             
             # DBにデータがない場合、APIから取得
@@ -110,7 +121,20 @@ class WeatherAPI:
                     
                     if saved:
                         # 保存後にDBから整形済みデータを取得
-                        return self.db.get_weather_forecast(area_code)
+                        db_data = self.db.get_weather_forecast(area_code)
+                        
+                        # 重複を排除して返す
+                        if db_data and 'forecasts' in db_data:
+                            unique_forecasts = {}
+                            for forecast in db_data['forecasts']:
+                                date_key = forecast['date'][:10]
+                                if date_key not in unique_forecasts:
+                                    unique_forecasts[date_key] = forecast
+                            
+                            db_data['forecasts'] = sorted(unique_forecasts.values(), key=lambda x: x["date"])
+                            print(f"重複排除後の予報件数: {len(db_data['forecasts'])}")
+                        
+                        return db_data
                     else:
                         print("天気予報データの保存に失敗しました")
                 else:
@@ -125,8 +149,8 @@ class WeatherAPI:
             import traceback
             traceback.print_exc()
             return None
-    
-    
+
+
     def parse_weather_data(self, weather_data):
         """
         天気予報データを解析して必要な情報を抽出する
@@ -140,6 +164,17 @@ class WeatherAPI:
         """
         # DBからのデータは既に解析済み
         if isinstance(weather_data, dict) and 'area_name' in weather_data:
+            # 重複を排除
+            if 'forecasts' in weather_data:
+                unique_forecasts = {}
+                for forecast in weather_data['forecasts']:
+                    date_key = forecast['date'][:10]
+                    if date_key not in unique_forecasts:
+                        unique_forecasts[date_key] = forecast
+                
+                weather_data['forecasts'] = sorted(unique_forecasts.values(), key=lambda x: x["date"])
+                print(f"parse_weather_data: 重複排除後の予報件数 {len(weather_data['forecasts'])}")
+            
             return weather_data
             
         # APIレスポンスのJSONデータの場合は解析が必要（互換性のため残す）
@@ -171,21 +206,27 @@ class WeatherAPI:
                         else:
                             result['area_name'] = '不明'
                         
-                        # 各日の天気
+                        # 各日の天気 - 重複を排除
                         if 'weathers' in area and 'weatherCodes' in area:
                             weathers = area['weathers']
                             weather_codes = area['weatherCodes']
-                            result['forecasts'] = []
+                            unique_forecasts = {}
                             
                             for i, weather in enumerate(weathers):
                                 if i < len(time_defines):
                                     weather_code = weather_codes[i] if i < len(weather_codes) else ""
-                                    forecast = {
-                                        'date': time_defines[i][:10],  # YYYY-MM-DDの部分だけ
-                                        'weather': weather,
-                                        'weather_code': weather_code
-                                    }
-                                    result['forecasts'].append(forecast)
+                                    date_key = time_defines[i][:10]  # YYYY-MM-DDの部分だけ
+                                    
+                                    # 同じ日付の予報がまだなければ追加
+                                    if date_key not in unique_forecasts:
+                                        unique_forecasts[date_key] = {
+                                            'date': date_key,
+                                            'weather': weather,
+                                            'weather_code': weather_code
+                                        }
+                            
+                            # 辞書から値のリストを作成し、日付でソート
+                            result['forecasts'] = sorted(unique_forecasts.values(), key=lambda x: x["date"])
             
             return result
         except Exception as e:

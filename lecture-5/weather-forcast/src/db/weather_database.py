@@ -308,7 +308,7 @@ class WeatherDatabase:
             import traceback
             traceback.print_exc()
             return False
-        
+            
     def get_weather_forecast(self, area_code):
         """
         指定された地域の最新の天気予報を取得
@@ -334,14 +334,16 @@ class WeatherDatabase:
             if not report_info:
                 print(f"レポート情報が見つかりません (area_code={area_code})")
                 return None
-                
+                    
             report_datetime, publishing_office = report_info
             print(f"レポート情報を取得しました - report_datetime={report_datetime}, publishing_office={publishing_office}")
             
-            # 予報データを取得
+            # 予報データを取得 - 日付ごとに一意の予報を取得するためにGROUP BYを使用
             self.cursor.execute('''
-            SELECT forecast_date, weather_code, weather FROM forecasts
+            SELECT MIN(forecast_date) as forecast_date, weather_code, weather 
+            FROM forecasts
             WHERE area_code = ? AND report_datetime = ?
+            GROUP BY substr(forecast_date, 1, 10)
             ORDER BY forecast_date
             ''', (area_code, report_datetime))
             
@@ -350,7 +352,7 @@ class WeatherDatabase:
             if not forecasts:
                 print(f"予報データが見つかりません (area_code={area_code}, report_datetime={report_datetime})")
                 return None
-                
+                    
             # 地域名を取得
             self.cursor.execute('''
             SELECT name FROM areas
@@ -370,17 +372,27 @@ class WeatherDatabase:
                 "forecasts": []
             }
             
+            # 日付ごとに一意の予報だけを保持するための辞書
+            unique_forecasts = {}
+            
             for forecast in forecasts:
                 forecast_date, weather_code, weather = forecast
-                result["forecasts"].append({
-                    "date": forecast_date[:10],  # YYYY-MM-DDの部分だけ取得
-                    "weather_code": weather_code,
-                    "weather": weather
-                })
+                date_key = forecast_date[:10]  # YYYY-MM-DDの部分だけを使用
                 
-            print(f"DB検索結果: {len(result['forecasts'])}件の予報データを取得")
-            return result
+                # まだ同じ日付のデータが登録されていない場合のみ追加
+                if date_key not in unique_forecasts:
+                    unique_forecasts[date_key] = {
+                        "date": date_key,
+                        "weather_code": weather_code,
+                        "weather": weather
+                    }
             
+            # 辞書から値のリストを作成し、日付でソート
+            result["forecasts"] = sorted(unique_forecasts.values(), key=lambda x: x["date"])
+                    
+            print(f"DB検索結果: {len(result['forecasts'])}件の予報データを取得（重複除去後）")
+            return result
+                
         except Exception as e:
             print(f"天気予報取得エラー(DB): {e}")
             import traceback
