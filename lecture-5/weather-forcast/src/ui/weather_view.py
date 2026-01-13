@@ -6,7 +6,9 @@ iPhoneの天気アプリ風デザイン
 
 import flet as ft
 from api.weather_api import WeatherAPI
-
+# weather_view.py の先頭に追加
+import threading
+import time
 
 class WeatherView:
     """
@@ -634,7 +636,7 @@ class WeatherView:
         
         e.control.update()
     
-    
+        
     def show_error_message(self, message):
         """
         エラーメッセージを表示する
@@ -645,15 +647,17 @@ class WeatherView:
         self.status_overlay.visible = True
         self.page.update()
         
-        # 3秒後に非表示
-        def hide_error():
+        # 3秒後に非表示 (スレッドを使用)
+        def delayed_hide():
+            time.sleep(3)  # 3秒待機
             self.error_text.visible = False
             self.status_overlay.visible = False
             self.page.update()
-            
-        self.page.after(3000, hide_error)
-    
-    
+        
+        # 別スレッドで実行
+        threading.Thread(target=delayed_hide, daemon=True).start()
+
+
     def show_success_message(self, message):
         """
         成功メッセージを表示する
@@ -665,12 +669,13 @@ class WeatherView:
         self.status_overlay.visible = True
         self.page.update()
         
-        # 2秒後に非表示
-        def hide_message():
+        # 2秒後に非表示 (スレッドを使用)
+        def delayed_hide():
+            time.sleep(2)  # 2秒待機
             self.error_text.visible = False
             self.status_overlay.visible = False
+            self.error_text.color = ft.Colors.RED_400  # 元の色に戻す
             self.page.update()
-            # 元の色に戻す
-            self.error_text.color = ft.Colors.RED_400
-            
-        self.page.after(2000, hide_message)
+        
+        # 別スレッドで実行
+        threading.Thread(target=delayed_hide, daemon=True).start()

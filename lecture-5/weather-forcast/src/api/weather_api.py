@@ -1,162 +1,195 @@
 """
-気象庁API専用のモジュール
-地域リストと天気予報データの取得機能を提供
+天気予報API連携モジュール
+気象庁の天気予報APIからデータを取得
 """
 
+import json
 from api.api_client import APIClient
+from db.weather_database import WeatherDatabase
 
 
 class WeatherAPI:
     """
-    気象庁APIとの通信を管理するクラス
+    天気予報APIからデータを取得するクラス
+    DBキャッシュも管理
     """
-    
-    # 気象庁APIのエンドポイント
-    AREA_LIST_URL = "http://www.jma.go.jp/bosai/common/const/area.json"
-    FORECAST_URL_TEMPLATE = "https://www.jma.go.jp/bosai/forecast/data/forecast/{area_code}.json"
-    
     
     def __init__(self):
         """
-        WeatherAPIの初期化
-        APIClientインスタンスを作成
+        WeatherAPIクラスの初期化
         """
-        self.client = APIClient(timeout=15)
+        # APIクライアントとDBの初期化
+        self.api_client = APIClient()
+        self.db = WeatherDatabase()
+        
+        # APIエンドポイント
+        self.area_url = "https://www.jma.go.jp/bosai/common/const/area.json"
+        self.forecast_url = "https://www.jma.go.jp/bosai/forecast/data/forecast/{office}.json"
+        
         print("WeatherAPI初期化完了")
     
     
     def get_area_list(self):
         """
-        全国の地域リストを取得する
+        地域リストを取得する
+        まずDBから取得を試み、なければAPIから取得してDBに保存
         
         Returns:
-            dict 地域情報の辞書
-                  {
-                      "centers": {...},  # 地方区分
-                      "offices": {...},  # 気象台
-                      "class10s": {...}, # 都道府県レベル
-                      "class15s": {...}, # 市町村レベル
-                      "class20s": {...}  # 細分区域
-                  }
-            None エラーが発生した場合
+            地域情報を含む辞書 {'offices': {...}}
         """
-        print("\n🗺️  地域リストを取得中...")
-        data = self.client.get_json(self.AREA_LIST_URL, log_detail=False)
+        # まずDBから取得を試みる
+        area_list = self.db.get_area_list()
         
-        if data:
-            # データの構造を確認
-            print(f"取得したデータのキー：{list(data.keys())}")
-            if 'offices' in data:
-                print(f"地域数：{len(data['offices'])}件")
+        # DBに地域リストがない場合、APIから取得
+        if not area_list or not area_list.get('offices'):
+            print("DBに地域リストがないか空なので、APIから取得します")
+            
+            # APIから地域リストを取得
+            response = self.api_client.get(self.area_url)
+            
+            if response.status_code == 200:
+                try:
+                    area_data = response.json()
+                    
+                    # 必要な情報だけを抽出（offices部分）
+                    if 'offices' in area_data:
+                        area_list = {'offices': area_data['offices']}
+                        
+                        # DBに保存
+                        self.db.save_area_list(area_list)
+                    else:
+                        print("APIレスポンスにofficesキーがありません")
+                        return None
+                except Exception as e:
+                    print(f"地域リストのJSONパースエラー: {e}")
+                    return None
+            else:
+                print(f"地域リスト取得に失敗: ステータスコード {response.status_code}")
+                return None
         
-        return data
+        return area_list
     
     
     def get_weather_forecast(self, area_code):
         """
-        指定された地域の天気予報を取得する
+        指定されたエリアの天気予報を取得する
+        まずDBから取得を試み、なければAPIから取得してDBに保存
         
         Args:
-            area_code 地域コード（例：130000は東京都）
+            area_code: 地域コード
             
         Returns:
-            list: 天気予報データのリスト
-                  [
-                      {
-                          "publishingOffice": "気象庁",
-                          "reportDatetime": "2024-01-01T1100:00+09:00",
-                          "timeSeries": [...]
-                      }
-                  ]
-            None: エラーが発生した場合
-        """
-        print(f"\n☁️  天気予報を取得中（地域コード：{area_code}）...")
-        
-        # URLを生成
-        url = self.FORECAST_URL_TEMPLATE.format(area_code=area_code)
-        
-        # データを取得
-        data = self.client.get_json(url, log_detail=False)
-        
-        if data:
-            print(f"✅ 天気予報データ取得成功")
-        
-        return data
-    
-    
-    def parse_weather_data(self, forecast_data):
-        """
-        天気予報データから必要な情報を抽出する
-        
-        Args
-            forecast_data: get_weather_forecastで取得したデータ
-            
-        Returns:
-            dict: 整形された天気情報
-                  {
-                      "publishing_office": "発表機関",
-                      "report_datetime": "発表日時",
-                      "area_name": "地域名",
-                      "forecasts": [
-                          {
-                              "date": "日付",
-                              "weather": "天気",
-                              "wind": "風",
-                              "wave": "波"
-                          }
-                      ]
-                  }
-            None: データ解析に失敗した場合
+            天気予報データ（JSON文字列）
         """
         try:
-            if not forecast_data or len(forecast_data) == 0:
-                print("⚠️  天気予報データが空です")
+            if not area_code:
                 return None
-            
-            # 最初の予報データを取得
-            first_forecast = forecast_data[0]
-            
-            # 基本情報を取得
-            result = {
-                "publishing_office": first_forecast.get("publishingOffice", "不明"),
-                "report_datetime": first_forecast.get("reportDatetime", "不明"),
-                "forecasts": []
-            }
-            
-            # 時系列データから天気情報を抽出
-            time_series = first_forecast.get("timeSeries", [])
-            if len(time_series) > 0:
-                # 天気、風、波の情報
-                weather_series = time_series[0]
-                areas = weather_series.get("areas", [])
                 
-                if len(areas) > 0:
-                    area = areas[0]
-                    result["area_name"] = area.get("area", {}).get("name", "不明")
-                    
-                    # 日付と天気のデータを結合
-                    time_defines = weather_series.get("timeDefines", [])
-                    weathers = area.get("weathers", [])
-                    winds = area.get("winds", [])
-                    waves = area.get("waves", [])
-                    
-                    for i in range(len(time_defines)):
-                        forecast_item = {
-                            "date": time_defines[i] if i < len(time_defines) else "不明",
-                            "weather": weathers[i] if i < len(weathers) else "不明",
-                            "wind": winds[i] if i < len(winds) else "不明",
-                            "wave": waves[i] if i < len(waves) else "不明"
-                        }
-                        result["forecasts"].append(forecast_item)
+            # まずDBから最新の天気予報を取得
+            db_forecast = self.db.get_weather_forecast(area_code)
             
-            print(f"✅ データ解析成功（{len(result['forecasts'])}日分の予報）")
-            return result
+            if db_forecast:
+                print(f"DBから{area_code}の天気予報を取得しました")
+                return db_forecast
+            
+            # DBにデータがない場合、APIから取得
+            print(f"DBに{area_code}の天気予報がないので、APIから取得します")
+            
+            # URLの整形（地域コードを挿入）
+            url = self.forecast_url.format(office=area_code)
+            
+            # APIリクエスト
+            response = self.api_client.get(url)
+            
+            if response.status_code == 200:
+                forecast_data = response.json()
+                
+                # DBに保存
+                if forecast_data and len(forecast_data) > 0:
+                    saved = self.db.save_weather_forecast(area_code, forecast_data[0])
+                    
+                    if saved:
+                        # 保存後にDBから整形済みデータを取得
+                        return self.db.get_weather_forecast(area_code)
+                    else:
+                        print("天気予報データの保存に失敗しました")
+                else:
+                    print("APIから有効な天気予報データが取得できませんでした")
+            else:
+                print(f"天気予報取得に失敗: ステータスコード {response.status_code}")
+            
+            return None
             
         except Exception as e:
-            from utils.logger import log_error
-            log_error("天気予報データの解析に失敗しました", e)
+            print(f"天気予報取得エラー: {e}")
+            import traceback
+            traceback.print_exc()
             return None
-if __name__ == "__main__":
-    # テスト実行用のコード
-    api = WeatherAPI()
-    print("Weather API initialized successfully")
+    
+    
+    def parse_weather_data(self, weather_data):
+        """
+        天気予報データを解析して必要な情報を抽出する
+        DBからのデータはすでに解析済みなので、そのまま返す
+        
+        Args:
+            weather_data: 天気予報データ
+            
+        Returns:
+            解析済みの天気予報情報を含む辞書
+        """
+        # DBからのデータは既に解析済み
+        if isinstance(weather_data, dict) and 'area_name' in weather_data:
+            return weather_data
+            
+        # APIレスポンスのJSONデータの場合は解析が必要（互換性のため残す）
+        try:
+            if isinstance(weather_data, str):
+                weather_data = json.loads(weather_data)
+                
+            result = {}
+            
+            # 発表元・発表日時
+            result['publishing_office'] = weather_data.get('publishingOffice', '不明')
+            result['report_datetime'] = weather_data.get('reportDatetime', '不明')
+            
+            # 予報データ取得（最初のtimeSeriesのみ使用）
+            if 'timeSeries' in weather_data and len(weather_data['timeSeries']) > 0:
+                time_series = weather_data['timeSeries'][0]
+                
+                if 'timeDefines' in time_series and 'areas' in time_series:
+                    # 日付のリスト
+                    time_defines = time_series['timeDefines']
+                    
+                    # 地域データ（最初の地域のみ使用）
+                    if len(time_series['areas']) > 0:
+                        area = time_series['areas'][0]
+                        
+                        # 地域名
+                        if 'area' in area and 'name' in area['area']:
+                            result['area_name'] = area['area']['name']
+                        else:
+                            result['area_name'] = '不明'
+                        
+                        # 各日の天気
+                        if 'weathers' in area and 'weatherCodes' in area:
+                            weathers = area['weathers']
+                            weather_codes = area['weatherCodes']
+                            result['forecasts'] = []
+                            
+                            for i, weather in enumerate(weathers):
+                                if i < len(time_defines):
+                                    weather_code = weather_codes[i] if i < len(weather_codes) else ""
+                                    forecast = {
+                                        'date': time_defines[i][:10],  # YYYY-MM-DDの部分だけ
+                                        'weather': weather,
+                                        'weather_code': weather_code
+                                    }
+                                    result['forecasts'].append(forecast)
+            
+            return result
+        except Exception as e:
+            print(f"天気データ解析エラー: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
