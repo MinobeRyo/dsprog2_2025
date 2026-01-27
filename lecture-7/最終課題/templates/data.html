@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全データ一覧 - PORT 8080</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>📊 宿泊統計データ分析 (PORT 8080)</h1>
+        <nav>
+            <a href="/">ホーム</a>
+            <a href="/data">全データ</a>
+            <a href="/api/data">API</a>
+            <a href="/status">ステータス</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>📋 全データ一覧（スクレイピング対象）</h2>
+            
+            {% if message %}
+            <div class="alert">{{ message }}</div>
+            {% else %}
+            <p class="info">合計 <strong>{{ data|length }}</strong> 件のデータ</p>
+            
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>都道府県</th>
+                        <th>国籍</th>
+                        <th>延べ宿泊者数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in data %}
+                    <tr class="data-row"
+                        data-id="{{ loop.index }}"
+                        data-prefecture="{{ item.prefecture }}"
+                        data-nationality="{{ item.nationality }}"
+                        data-value="{{ item.value }}">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.prefecture }}</td>
+                        <td>{{ item.nationality }}</td>
+                        <td class="number">{{ "{:,}".format(item.value) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer>
+        <p>このページはスクレイピング演習用です | PORT: 8080</p>
+    </footer>
+</body>
+</html>
