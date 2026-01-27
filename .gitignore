@@ -209,3 +209,7 @@ __marimo__/
 *.db
 
 /lecture-1/*.db
+
+*.csv
+
+

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宿泊旅行統計調査 - データダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-box, .filter-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #5568d3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .page-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 宿泊旅行統計調査データ</h1>
+
+        <!-- 統計サマリー -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">{{ total }}</div>
+                <div class="stat-label">総データ数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="prefectureCount">47</div>
+                <div class="stat-label">都道府県数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="displayCount">{{ total }}</div>
+                <div class="stat-label">表示中</div>
+            </div>
+        </div>
+
+        <!-- ナビゲーションボタン -->
+        <div class="nav-buttons">
+            <a href="/data" class="btn">📄 全データ表示</a>
+            <a href="/api/data" class="btn btn-secondary" target="_blank">🔌 JSON API</a>
+            <button class="btn btn-secondary" onclick="downloadCSV()">💾 CSV出力</button>
+            <button class="btn btn-secondary" onclick="downloadJSON()">📦 JSON出力</button>
+        </div>
+
+        <!-- 検索・フィルター -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 都道府県名で検索..." onkeyup="filterTable()">
+            </div>
+            <div class="filter-box">
+                <select id="nationalityFilter" onchange="filterTable()">
+                    <option value="">すべての国籍</option>
+                    <option value="総数">総数</option>
+                    <option value="外国人">外国人</option>
+                    <option value="実宿泊者">実宿泊者</option>
+                    <option value="韓国">韓国</option>
+                    <option value="中国">中国</option>
+                    <option value="台湾">台湾</option>
+                    <option value="米国">米国</option>
+                </select>
+            </div>
+            <div class="filter-box">
+                <select id="sortOrder" onchange="sortTable()">
+                    <option value="">並び替え</option>
+                    <option value="value-desc">宿泊者数: 多い順</option>
+                    <option value="value-asc">宿泊者数: 少ない順</option>
+                    <option value="prefecture-asc">都道府県: 昇順</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- データテーブル -->
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>都道府県</th>
+                    <th>国籍</th>
+                    <th>延べ宿泊者数</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                {% if data %}
+                    {% for item in data[:50] %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.prefecture }}</td>
+                        <td>{{ item.nationality }}</td>
+                        <td style="text-align: right;">{{ "{:,}".format(item.value) }} 人泊</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="no-data">データがありません</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <!-- ページネーション -->
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <script>
+        // 全データをJavaScriptに渡す
+        let allData = {{ data | tojson | safe }};
+        let filteredData = [...allData];
+        let currentPage = 1;
+        let rowsPerPage = 50;
+
+        // 検索・フィルター機能
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const nationalityFilter = document.getElementById('nationalityFilter').value;
+
+            filteredData = allData.filter(item => {
+                const matchSearch = item.prefecture.toLowerCase().includes(searchTerm);
+                const matchNationality = !nationalityFilter || item.nationality === nationalityFilter;
+                return matchSearch && matchNationality;
+            });
+
+            document.getElementById('displayCount').textContent = filteredData.length;
+            currentPage = 1;
+            renderTable();
+        }
+
+        // ソート機能
+        function sortTable() {
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            if (sortOrder === 'value-desc') {
+                filteredData.sort((a, b) => b.value - a.value);
+            } else if (sortOrder === 'value-asc') {
+                filteredData.sort((a, b) => a.value - b.value);
+            } else if (sortOrder === 'prefecture-asc') {
+                filteredData.sort((a, b) => a.prefecture.localeCompare(b.prefecture));
+            }
+
+            renderTable();
+        }
+
+        // テーブル描画
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="no-data">該当するデータがありません</td></tr>';
+                document.getElementById('pagination').innerHTML = '';
+                return;
+            }
+
+            pageData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${start + index + 1}</td>
+                    <td>${item.prefecture}</td>
+                    <td>${item.nationality}</td>
+                    <td style="text-align: right;">${item.value.toLocaleString()} 人泊</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            renderPagination();
+        }
+
+        // ページネーション
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            // 最大10ページまで表示
+            const maxPages = Math.min(totalPages, 10);
+
+            for (let i = 1; i <= maxPages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderTable();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                pagination.appendChild(btn);
+            }
+
+            if (totalPages > 10) {
+                const moreBtn = document.createElement('button');
+                moreBtn.textContent = `... ${totalPages}`;
+                moreBtn.className = 'page-btn';
+                moreBtn.disabled = true;
+                pagination.appendChild(moreBtn);
+            }
+        }
+
+        // CSV出力
+        function downloadCSV() {
+            let csv = '\uFEFFID,都道府県,国籍,延べ宿泊者数\n'; // BOM付きUTF-8
+            filteredData.forEach((item, index) => {
+                csv += `${index + 1},${item.prefecture},${item.nationality},${item.value}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tourism_data_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // JSON出力
+        function downloadJSON() {
+            const json = JSON.stringify(filteredData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tourism_data_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 初期表示
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTable();
+        });
+    </script>
+</body>
+</html>
