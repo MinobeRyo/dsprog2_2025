@@ -60,8 +60,8 @@ def clean_prefecture_name(name):
     return None
 
 def load_data():
-    """CSVファイルを読み込む（クリーニング強化版）"""
-    csv_dir = "csv_output"
+    """CSVファイルを読み込む（月情報追加版）"""
+    csv_dir = os.path.join(os.path.dirname(__file__), "csv_output") 
     
     if not os.path.exists(csv_dir):
         os.makedirs(csv_dir)
@@ -80,6 +80,16 @@ def load_data():
     
     for file in files:
         try:
+            filename = os.path.basename(file)
+            
+            # ★ 追加: ファイル名から月を抽出
+            month = None
+            match = re.search(r'(\d+)月', filename)
+            if match:
+                month = int(match.group(1))
+            elif '年計' in filename:
+                month = 0
+            
             # データ行の開始位置を探す
             df_raw = pd.read_csv(file, nrows=15)
             
@@ -98,8 +108,7 @@ def load_data():
             # データ行から読み込み
             df = pd.read_csv(file, skiprows=data_start_row, header=None)
             
-            filename = os.path.basename(file)
-            print(f"  📄 処理中: {filename}")
+            print(f"  📄 処理中: {filename} (month={month})")
             
             # 第2表（延べ宿泊者数）
             if '第2表' in filename or '第２表' in filename:
@@ -118,7 +127,8 @@ def load_data():
                                 all_data.append({
                                     'prefecture': prefecture,
                                     'value': total_value,
-                                    'nationality': '総数'
+                                    'nationality': '総数',
+                                    'month': month  # ★ 追加
                                 })
                         except:
                             pass
@@ -130,7 +140,8 @@ def load_data():
                                 all_data.append({
                                     'prefecture': prefecture,
                                     'value': foreign_value,
-                                    'nationality': '外国人'
+                                    'nationality': '外国人',
+                                    'month': month  # ★ 追加
                                 })
                         except:
                             pass
@@ -156,7 +167,8 @@ def load_data():
                                     all_data.append({
                                         'prefecture': prefecture,
                                         'value': value,
-                                        'nationality': nationality
+                                        'nationality': nationality,
+                                        'month': month  # ★ 追加
                                     })
                             except:
                                 continue
@@ -177,7 +189,8 @@ def load_data():
                                 all_data.append({
                                     'prefecture': prefecture,
                                     'value': value,
-                                    'nationality': '実宿泊者'
+                                    'nationality': '実宿泊者',
+                                    'month': month  # ★ 追加
                                 })
                         except:
                             continue
